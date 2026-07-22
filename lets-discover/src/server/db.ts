@@ -166,6 +166,9 @@ function migrate() {
   } catch {}
   try { db!.exec('ALTER TABLE gmaps_favorites ADD COLUMN list_name TEXT') } catch {}
   try { db!.exec('ALTER TABLE gmaps_favorites ADD COLUMN place_count INTEGER DEFAULT 0') } catch {}
+
+  // Persona confidence level (early extraction)
+  try { db!.exec("ALTER TABLE personas ADD COLUMN confidence TEXT DEFAULT 'low'") } catch {}
 }
 
 export function closeDb() {

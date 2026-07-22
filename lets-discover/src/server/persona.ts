@@ -73,6 +73,7 @@ export function getPersona(sessionId: string): Persona | null {
     shortTermBullets: JSON.parse(row.short_term_bullets || '[]'),
     longTermBullets: JSON.parse(row.long_term_bullets || '[]'),
     hobbyBullets: JSON.parse(row.hobby_bullets || '[]'),
+    confidence: (row.confidence as 'low' | 'medium' | 'high') || 'low',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -80,7 +81,11 @@ export function getPersona(sessionId: string): Persona | null {
 
 export async function refreshPersona(sessionId: string): Promise<Persona | null> {
   const messages = getMessages(sessionId)
-  if (messages.length < 3) return getPersona(sessionId)
+  // Extract persona from message 1; confidence scales with message count
+  const confidence: 'low' | 'medium' | 'high' =
+    messages.length >= 5 ? 'high' :
+    messages.length >= 3 ? 'medium' :
+    'low'
 
   const extracted = await extractPersonaFromChat(
     messages.map((m) => ({ role: m.role, content: m.content }))
@@ -96,7 +101,7 @@ export async function refreshPersona(sessionId: string): Promise<Persona | null>
       `UPDATE personas SET
         city = ?, vibe = ?, interests = ?, short_term_goals = ?,
         long_term_goals = ?, hobbies = ?, summary = ?,
-        color_profile = ?, updated_at = ?,
+        color_profile = ?, confidence = ?, updated_at = ?,
         short_term_bullets = ?, long_term_bullets = ?, hobby_bullets = ?
       WHERE session_id = ?`
     ).run(
@@ -108,6 +113,7 @@ export async function refreshPersona(sessionId: string): Promise<Persona | null>
       JSON.stringify(extracted.hobbies),
       extracted.summary || null,
       colorProfile,
+      confidence,
       now,
       JSON.stringify(extracted.shortTermBullets || []),
       JSON.stringify(extracted.longTermBullets || []),
@@ -119,9 +125,9 @@ export async function refreshPersona(sessionId: string): Promise<Persona | null>
     db.prepare(
       `INSERT INTO personas
         (id, session_id, city, vibe, interests, short_term_goals, long_term_goals, hobbies, summary, color_profile,
-         short_term_bullets, long_term_bullets, hobby_bullets,
+         short_term_bullets, long_term_bullets, hobby_bullets, confidence,
          created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
       sessionId,
@@ -136,6 +142,7 @@ export async function refreshPersona(sessionId: string): Promise<Persona | null>
       JSON.stringify(extracted.shortTermBullets || []),
       JSON.stringify(extracted.longTermBullets || []),
       JSON.stringify(extracted.hobbyBullets || []),
+      confidence,
       now,
       now
     )
