@@ -286,14 +286,14 @@ html, body {
   height: 56px;
   border-radius: 99px;
   background: linear-gradient(to bottom, transparent, var(--accent) 50%, transparent);
-  opacity: 0.18;
+  opacity: 0.3;
   animation: edgeGlow 3.5s ease-in-out infinite;
   pointer-events: none;
 }
 
 @keyframes edgeGlow {
-  0%, 100% { opacity: 0.10; }
-  50% { opacity: 0.28; }
+  0%, 100% { opacity: 0.20; }
+  50% { opacity: 0.40; }
 }
 
 /* The back-edge already has its own hint via .back-swipe-hint, but make the
@@ -1463,29 +1463,9 @@ html, body {
   border-radius: 99px;
 }
 
-.front-chat.fc-has-history::-webkit-scrollbar-thumb {
+.front-chat::-webkit-scrollbar-thumb {
   background: var(--text-muted);
   opacity: 0.4;
-}
-
-/* ─── History scroll hint (subtle text at top of chat) ────────── */
-
-.fc-history-hint {
-  font-size: 9px;
-  font-weight: 500;
-  color: var(--text-muted);
-  text-align: center;
-  padding: 6px 12px 2px;
-  opacity: 0.35;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  flex-shrink: 0;
-  animation: fcHintPulse 3s ease-in-out infinite;
-}
-
-@keyframes fcHintPulse {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.45; }
 }
 
 /* ─── Front Branding — always visible, shrinks when chatting ─── */
@@ -1571,7 +1551,6 @@ html, body {
   max-width: 82%;
   width: 100%;
   animation: bubbleIn 0.35s ease;
-  transition: opacity 0.6s ease, transform 0.6s ease;
 }
 
 
@@ -1629,57 +1608,7 @@ html, body {
   transition: opacity 0.5s ease;
 }
 
-/* ─── Progressive message fading — all messages stay in DOM ──── */
 
-/* Newest 2 messages — full opacity, normal size */
-
-/* 2-3 back — soft fade: reduced opacity, smaller */
-.front-bubble.fb-faded {
-  opacity: 0.45;
-  transform: scale(0.96) translateY(-1px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-.front-bubble.fb-faded .fb-text {
-  padding: 8px 14px;
-  font-size: 13px;
-  transition: font-size 0.5s ease, padding 0.5s ease;
-}
-
-.front-bubble.fb-faded .fb-emoji {
-  width: 22px;
-  height: 22px;
-  font-size: 11px;
-}
-
-/* 4+ back — aged: barely visible, compressed */
-.front-bubble.fb-aged {
-  opacity: 0.2;
-  transform: scale(0.92) translateY(-3px);
-  transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-.front-bubble.fb-aged .fb-text {
-  padding: 6px 12px;
-  font-size: 11px;
-  line-height: 1.3;
-  transition: font-size 0.5s ease, padding 0.5s ease;
-}
-
-.front-bubble.fb-aged .fb-emoji {
-  width: 18px;
-  height: 18px;
-  font-size: 10px;
-}
-
-/* Aged bubbles fade into background (transparent borders) */
-.front-bubble.fb-aged .fb-text,
-.front-bubble.fb-faded .fb-text {
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  color: var(--text-muted) !important;
-}
 
 /* ─── Dot pulse for loading ─────────────────────────────────────── */
 
@@ -2728,4 +2657,94 @@ html, body {
 
 .gs-search-row .gs-btn {
   flex-shrink: 0;
+}
+
+/* ─── Back Face Search ─────────────────────────────────────────── */
+
+.back-search {
+  flex-shrink: 0;
+  padding: 8px 16px 6px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.5s ease, border-color 0.5s ease;
+}
+
+.back-search-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.back-search-form input {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.5s ease;
+}
+
+.back-search-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.back-search-form input::placeholder {
+  color: var(--text-muted);
+}
+
+.back-search-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 99px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.back-search-clear:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* Search results override for DiscoveryPanel */
+.back-search-results {
+  padding: 4px 16px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.bs-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.bs-result:last-child {
+  border-bottom: none;
+}
+
+.bs-result-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bs-result-desc {
+  font-size: 12px;
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+
+.bs-result-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 0;
 }
