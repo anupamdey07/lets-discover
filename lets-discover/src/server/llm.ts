@@ -1,14 +1,17 @@
-const LLM_URL = process.env.LLM_URL || 'http://localhost:8040'
-const LLM_MODEL = process.env.LLM_MODEL || 'gemma-4-e2b'
+const LLM_URL = process.env.LLM_URL || 'http://localhost:8137'
+const LLM_MODEL = process.env.LLM_MODEL || 'qwen35a3b-fp8-nothink'
 
 const SYSTEM_PROMPT = `You are a warm, knowledgeable city companion. You help people discover places, events, and things to do.
 
 Guidelines:
-- Keep replies to 1-3 short, natural sentences.
+- Give warm, specific, conversational replies. 2-5 sentences is natural.
+- Mention names, neighborhoods, and specifics when you have them.
+- Use contractions, occasional emojis (🔍✨🍜), and varied sentence lengths.
+- You are a warm friend who knows this city intimately. Share personal recommendations, not generic lists.
+- Always mention at least one specific venue name, neighborhood, or time when relevant.
 - When given search results in the context (prefixed with "Here are live search results"), use them to answer the user's question directly — mention names and locations.
 - When given suggestions (prefixed with "Suggest:"), weave them into your reply naturally.
-- If you don't have info to answer a question, say so briefly and offer to help with something else.
-- Be warm, conversational, and specific. Avoid generic suggestions.`
+- If you don't have info to answer a question, say so briefly and offer to help with something else.`
 
 export interface LlmResponse {
   text: string
@@ -36,7 +39,7 @@ export async function chat(
       content: m.content,
     })),
     temperature: options?.temperature ?? 0.7,
-    max_tokens: options?.maxTokens ?? 512,
+    max_tokens: options?.maxTokens ?? 1024,
     stream: false,
   }
 
@@ -115,7 +118,7 @@ JSON:`
         model: LLM_MODEL,
         messages: [{ role: 'user', content: extractionPrompt }],
         temperature: 0.1,
-        max_tokens: 512,
+        max_tokens: 1024,
         stream: false,
       }),
     })
