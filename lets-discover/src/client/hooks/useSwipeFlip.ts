@@ -26,7 +26,7 @@ export function useSwipeFlip(
   options: SwipeFlipOptions = {}
 ) {
   const {
-    threshold = 140,
+    threshold = 100,
     resistance = 1.0,
     edgeOnly = true,
     edgeWidth = 48,
