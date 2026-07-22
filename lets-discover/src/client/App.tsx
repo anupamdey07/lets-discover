@@ -4,7 +4,7 @@ import { DiscoveryPanel } from './components/DiscoveryPanel'
 import { ThemeSelector } from './components/ThemeSelector'
 import { QuickPicks } from './components/QuickPicks'
 import { TopPicks } from './components/TopPicks'
-import { CityTiles } from './components/CityTiles'
+import { BackSearch } from './components/BackSearch'
 import { FrontFace } from './components/FrontFace'
 import { GmapsSettings } from './components/GmapsSettings'
 import { useSwipeFlip } from './hooks/useSwipeFlip'
@@ -25,6 +25,8 @@ interface AppState {
   quickPicks: any[]
   quickPicksLoading: boolean
   flipped: boolean
+  searchResults: any[]
+  searchLoading: boolean
 }
 
 function loadSession(): string | null {
@@ -51,6 +53,8 @@ export default function App() {
     quickPicks: [],
     quickPicksLoading: false,
     flipped: false,
+    searchResults: [],
+    searchLoading: false,
   })
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -328,7 +332,6 @@ export default function App() {
     return 'calm'
   })
 
-  // Track persona sheet expanded state for CityTiles
   const [personaSheetOpen, setPersonaSheetOpen] = useState(false)
   const [gmapsSettingsOpen, setGmapsSettingsOpen] = useState(false)
 
@@ -349,6 +352,7 @@ export default function App() {
   // Flip handler
   const handleFlip = useCallback(() => {
     setState((s) => ({ ...s, flipped: !s.flipped }))
+    setState((s) => ({ ...s, searchResults: [] }))
   }, [])
 
   // Swipe gesture for flip — single instance drives both faces so the
@@ -461,6 +465,7 @@ export default function App() {
                 activities={displayActivities}
                 loading={displayLoading}
                 theme={state.activeTheme}
+                searchResults={state.searchResults}
               />
             </div>
 
@@ -468,6 +473,12 @@ export default function App() {
               activeTheme={state.activeTheme}
               onSelect={handleThemeSelect}
               loading={state.themeLoading}
+            />
+
+            <BackSearch
+              onResults={(results) => setState((s) => ({ ...s, searchResults: results }))}
+              loading={state.searchLoading}
+              setLoading={(v) => setState((s) => ({ ...s, searchLoading: v }))}
             />
 
             <QuickPicks
@@ -481,13 +492,7 @@ export default function App() {
               compact
             />
 
-            {/* City tiles — inside the scroll, below TopPicks. Fades when persona drawer opens */}
-            {state.persona && (
-              <CityTiles
-                sessionId={state.sessionId || ''}
-                personaSheetOpen={personaSheetOpen}
-              />
-            )}
+
           </div>
 
           {/* Persona sheet floats over the back face */}
