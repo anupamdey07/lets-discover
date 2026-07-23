@@ -175,7 +175,7 @@ app.post('/api/chat', async (req, res) => {
     const discoveryContext = contextParts.join('\n\n')
 
     // Get LLM response — inject discovery context as a system hint
-    const { text: reply } = await chat(llmMessages, { context: discoveryContext, maxTokens: 256 })
+    const { text: reply } = await chat(llmMessages, { context: discoveryContext, maxTokens: 1024 })
 
     // Save assistant response
     saveMessage(sid, 'assistant', reply)
@@ -290,6 +290,21 @@ app.get('/api/discoveries', (req, res) => {
 app.post('/api/discoveries/cleanup', (_req, res) => {
   const removed = cleanupExpiredDiscoveries()
   res.json({ removed })
+})
+
+// Search discoveries by query
+app.get('/api/search', async (req, res) => {
+  try {
+    const q = (req.query.q as string)?.trim()
+    if (!q || q.length < 2) {
+      return res.json({ results: [] })
+    }
+    const events = await searchEvents(q, 6)
+    res.json({ results: events })
+  } catch (err: any) {
+    console.error('[search] Error:', err)
+    res.json({ results: [] })
+  }
 })
 
 // Get chat history
@@ -488,6 +503,6 @@ app.get('*', (_req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✨ Lets Discover running on http://0.0.0.0:${PORT}`)
   console.log(`   Tailscale: http://100.99.206.118:${PORT}`)
-  console.log(`   LLM: ${process.env.LLM_URL || 'http://localhost:8040'}`)
+  console.log(`   LLM: ${process.env.LLM_URL || 'http://localhost:8137'}`)
   console.log(`   SearXNG: ${process.env.SEARXNG_URL || 'http://localhost:8888'}`)
 })

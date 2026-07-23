@@ -74,11 +74,8 @@ export function FrontFace({ onFlip, onSend, onClear, messages, loading, theme, p
     await onSend(text)
   }
 
-  // All messages preserved in the DOM. Newest 2 are full; older ones
-  // progressively fade and compress, but remain scrollable.
+  // All messages preserved in the DOM at full readability.
   const hasRecent = messages.length > 0
-  const lastIdx = messages.length - 1
-  const hasScrollHistory = messages.length > 2
 
   return (
     <div className={`front-face front-visible ${keyboardActive ? 'kb-open' : ''}`}>
@@ -99,29 +96,18 @@ export function FrontFace({ onFlip, onSend, onClear, messages, loading, theme, p
         )}
       </div>
 
-      {/* ── Chat messages — all preserved, older ones fade progressively ── */}
+      {/* ── Chat messages — all at full readability ── */}
       {hasRecent && (
-        <div className={`front-chat ${keyboardActive ? 'fc-kb-compact' : ''} ${hasScrollHistory ? 'fc-has-history' : ''}`} ref={chatRef}>
-          {hasScrollHistory && (
-            <div className="fc-history-hint">↑ older messages</div>
-          )}
-          {messages.map((msg, i) => {
-            // Distance from newest message — determines fade level
-            const distFromNewest = lastIdx - i
-            let fadeClass = ''
-            if (distFromNewest >= 4) fadeClass = 'fb-aged'     // 4+ back → barely visible
-            else if (distFromNewest >= 2) fadeClass = 'fb-faded' // 2-3 back → soft
-
-            return (
+        <div className={`front-chat ${keyboardActive ? 'fc-kb-compact' : ''}`} ref={chatRef}>
+          {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`front-bubble ${msg.role === 'user' ? 'fb-user' : 'fb-assistant'} ${fadeClass}`}
+                className={`front-bubble ${msg.role === 'user' ? 'fb-user' : 'fb-assistant'}`}
               >
                 {msg.role === 'assistant' && <span className="fb-emoji">🔍</span>}
                 <span className="fb-text">{msg.content}</span>
               </div>
-            )
-          })}
+            ))}
 
           {loading && (
             <div className="front-bubble fb-assistant">

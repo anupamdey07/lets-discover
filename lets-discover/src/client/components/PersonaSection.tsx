@@ -23,6 +23,13 @@ export function PersonaSection({ persona, onUpdate }: PersonaSectionProps) {
   const [longTerm, setLongTerm] = useState(persona.longTermGoals.join(', '))
   const [hobbies, setHobbies] = useState(persona.hobbies.join(', '))
 
+  const confidenceLabel = persona.confidence === 'low'
+    ? '🌱 Still getting to know you'
+    : persona.confidence === 'medium'
+      ? '✨ learning your vibe'
+      : '🎯 knows your style'
+  const hasConfidence = persona.confidence && (persona.shortTermGoals.length === 0 && persona.hobbies.length === 0)
+
   function handleSave() {
     onUpdate({
       shortTerm: shortTerm.split(',').map(s => s.trim()).filter(Boolean),
@@ -48,6 +55,9 @@ export function PersonaSection({ persona, onUpdate }: PersonaSectionProps) {
     <div className="section persona-section">
       <div className="section-header">
         <span className="section-title">🎯 About me</span>
+        {hasConfidence && (
+          <span className="section-subtitle" style={{ marginRight: 'auto' }}>{confidenceLabel}</span>
+        )}
         <button className="section-action" onClick={() => setEditing(!editing)}>
           {editing ? 'Cancel' : 'Edit'}
         </button>

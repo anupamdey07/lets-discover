@@ -17,6 +17,7 @@ export interface Persona {
   shortTermBullets: string[]
   longTermBullets: string[]
   hobbyBullets: string[]
+  confidence?: 'low' | 'medium' | 'high'
   createdAt: string
   updatedAt: string
 }

@@ -4,6 +4,7 @@ interface DiscoveryPanelProps {
   activities: Activity[]
   loading?: boolean
   theme: string | null
+  searchResults?: Activity[]
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -48,35 +49,37 @@ function extractType(title: string, desc: string): string {
   return '📍 Place'
 }
 
-export function DiscoveryPanel({ activities, loading, theme }: DiscoveryPanelProps) {
+export function DiscoveryPanel({ activities, loading, theme, searchResults }: DiscoveryPanelProps) {
   const themeLabel = theme || 'discoveries'
   const icon = theme ? (CATEGORY_ICONS[theme] || '✨') : '🎵'
+  const items = searchResults && searchResults.length > 0 ? searchResults : activities
+  const itemsLoading = searchResults ? loading : loading
 
   return (
     <div className="discovery-panel">
       <div className="discovery-header">
         <span className="discovery-label">{icon} {themeLabel}</span>
         <span className="discovery-count">
-          {activities.length > 0 ? `${activities.length} places` : ''}
+          {items.length > 0 ? `${items.length} results` : ''}
           <span className="discovery-hint"> scroll →</span>
         </span>
       </div>
 
       <div className="discovery-track">
-        {loading && activities.length === 0 ? (
+        {itemsLoading && items.length === 0 ? (
           <>
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="discovery-skeleton" />
             ))}
           </>
-        ) : activities.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="discovery-empty">
             {theme
               ? `Tap search to explore ${theme}`
               : 'Chat to discover places ✨'}
           </div>
         ) : (
-          activities.slice(0, 20).map((activity) => (
+          items.slice(0, 20).map((activity: Activity) => (
             <a
               key={activity.id}
               href={activity.url || '#'}
