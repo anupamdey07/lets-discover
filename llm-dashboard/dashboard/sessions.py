@@ -29,15 +29,29 @@ def list_sessions(dir_path: Path) -> list[dict]:
             session_id = ""
             timestamp = ""
             cwd = ""
+            brief = ""
+            last_ts = ""
             with open(f) as fh:
                 for line in fh:
                     entry_count += 1
                     try:
                         entry = json.loads(line.strip())
-                        if entry.get("type") == "session":
+                        etype = entry.get("type", "")
+                        if etype == "session":
                             session_id = entry.get("id", "")
                             timestamp = entry.get("timestamp", "")
                             cwd = entry.get("cwd", "")
+                        if not brief and etype == "message":
+                            msg = entry.get("message", {})
+                            if msg.get("role") == "user":
+                                for block in msg.get("content", []):
+                                    if block.get("type") == "text" and block.get("text"):
+                                        text = block["text"].strip()
+                                        if text:
+                                            brief = text[:120] + ("..." if len(text) > 120 else "")
+                                            break
+                        if etype == "message":
+                            last_ts = entry.get("timestamp", "") or last_ts
                     except json.JSONDecodeError:
                         continue
             sessions.append({
@@ -46,6 +60,8 @@ def list_sessions(dir_path: Path) -> list[dict]:
                 "timestamp": timestamp,
                 "cwd": cwd,
                 "entryCount": entry_count,
+                "brief": brief,
+                "lastTimestamp": last_ts,
             })
         except Exception:
             continue
