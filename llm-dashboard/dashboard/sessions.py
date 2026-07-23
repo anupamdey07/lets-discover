@@ -48,7 +48,7 @@ def list_sessions(dir_path: Path) -> list[dict]:
                                     if block.get("type") == "text" and block.get("text"):
                                         text = block["text"].strip()
                                         if text:
-                                            brief = text[:120] + ("..." if len(text) > 120 else "")
+                                            brief = text[:60] + ("..." if len(text) > 60 else "")
                                             break
                         if etype == "message":
                             last_ts = entry.get("timestamp", "") or last_ts
