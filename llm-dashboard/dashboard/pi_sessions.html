@@ -96,9 +96,18 @@ function goList() { state = { view: 'list', dir: state.dir, file: '' }; render()
 async function fetchJSON(path) {
   try {
     const r = await fetch(API + path);
-    if (!r.ok) return null;
+    if (!r.ok) {
+      console.error('API error:', path, r.status);
+      content.innerHTML = '<div class="loading">Error: ' + r.status + ' ' + r.statusText + '<br>Path: ' + path + '</div>';
+      return null;
+    }
     return await r.json();
-  } catch { return null; }
+  } catch (e) {
+    console.error('Fetch failed:', path, e);
+    const c = document.getElementById('content');
+    if (c) c.innerHTML = '<div class="loading">Network error: ' + e.message + '<br>Path: ' + path + '</div>';
+    return null;
+  }
 }
 
 async function refresh() {
