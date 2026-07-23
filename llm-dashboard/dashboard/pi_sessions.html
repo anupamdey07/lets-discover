@@ -143,6 +143,8 @@ async function renderDirectories() {
     content.innerHTML = '<div class="loading">No session directories found<br>Response was: ' + JSON.stringify(dirs) + '</div>';
     return;
   }
+  // Sort by session count, highest to lowest
+  dirs.sort((a, b) => b.count - a.count);
   content.innerHTML = '<div class="tile-grid">' +
     dirs.map(d => `<div class="tile" onclick="openDir('${d.name.replace(/'/g, "\\'")}')">
       <div class="tile-cwd">${displayDir(d.name)}</div>
@@ -158,12 +160,30 @@ async function renderList() {
   const content = document.getElementById('content');
   const controls = document.getElementById('controls');
   controls.innerHTML = '<button class="back-btn" onclick="goDirectories()">← Back</button>';
-  content.innerHTML = '<div class="loading">Loading sessions…</div>';
-  const sessions = await fetchJSON(`/api/sessions/list?dir=${encodeURIComponent(state.dir)}`);
-  if (!sessions || sessions.length === 0) {
-    content.innerHTML = '<div class="loading">No sessions found</div>';
+  content.innerHTML = '<div class="loading">Loading sessions for ' + displayDir(state.dir) + '…</div>';
+  let sessions = null;
+  try {
+    const r = await fetch(API + '/sessions/list?dir=' + encodeURIComponent(state.dir));
+    const text = await r.text();
+    if (!r.ok) {
+      content.innerHTML = '<div class="error">API error: ' + r.status + ' ' + r.statusText + '<br>Response: ' + text.substring(0, 300) + '</div>';
+      return;
+    }
+    try { sessions = JSON.parse(text); }
+    catch (e) {
+      content.innerHTML = '<div class="error">JSON parse error: ' + e.message + '<br>Response: ' + text.substring(0, 300) + '</div>';
+      return;
+    }
+  } catch (e) {
+    content.innerHTML = '<div class="error">Fetch error: ' + e.message + '</div>';
     return;
   }
+  if (!sessions || sessions.length === 0) {
+    content.innerHTML = '<div class="loading">No sessions found in ' + displayDir(state.dir) + '</div>';
+    return;
+  }
+  // Sort by timestamp, newest first
+  sessions.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
   content.innerHTML = '<div class="session-list">' +
     sessions.map(s => `<div class="session-row" onclick="openSession('${s.name.replace(/'/g, "\\'")}')">
       <div class="session-id" title="${s.id}">${s.id.slice(0, 12)}…</div>
@@ -181,10 +201,23 @@ async function renderParse() {
   const content = document.getElementById('content');
   const controls = document.getElementById('controls');
   controls.innerHTML = '<button class="back-btn" onclick="goList()">← Back</button>';
-  content.innerHTML = '<div class="loading">Loading session…</div>';
-  const parsed = await fetchJSON(`/api/sessions/parse?file=${encodeURIComponent(state.dir + '/' + state.file)}`);
-  if (!parsed) {
-    content.innerHTML = '<div class="error">Failed to load session</div>';
+  content.innerHTML = '<div class="loading">Loading session ' + state.file + '…</div>';
+  let parsed = null;
+  try {
+    const filePath = state.dir + '/' + state.file;
+    const r = await fetch(API + '/sessions/parse?file=' + encodeURIComponent(filePath));
+    const text = await r.text();
+    if (!r.ok) {
+      content.innerHTML = '<div class="error">API error: ' + r.status + ' ' + r.statusText + '<br>File: ' + filePath + '<br>Response: ' + text.substring(0, 300) + '</div>';
+      return;
+    }
+    try { parsed = JSON.parse(text); }
+    catch (e) {
+      content.innerHTML = '<div class="error">JSON parse error: ' + e.message + '<br>Response: ' + text.substring(0, 300) + '</div>';
+      return;
+    }
+  } catch (e) {
+    content.innerHTML = '<div class="error">Fetch error: ' + e.message + '</div>';
     return;
   }
   const config = {
