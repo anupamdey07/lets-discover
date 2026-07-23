@@ -121,9 +121,26 @@ async function renderDirectories() {
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
   content.innerHTML = '<div class="loading">Loading directories…</div>';
-  const dirs = await fetchJSON('/api/sessions/directories');
+  let dirs = null;
+  try {
+    const r = await fetch(API + '/sessions/directories');
+    const text = await r.text();
+    console.log('API response:', text.substring(0, 200));
+    if (!r.ok) {
+      content.innerHTML = '<div class="loading">Error: ' + r.status + ' ' + r.statusText + '<br>Response: ' + text.substring(0, 200) + '</div>';
+      return;
+    }
+    try { dirs = JSON.parse(text); }
+    catch (e) {
+      content.innerHTML = '<div class="loading">JSON parse error: ' + e.message + '<br>Response: ' + text.substring(0, 200) + '</div>';
+      return;
+    }
+  } catch (e) {
+    content.innerHTML = '<div class="loading">Fetch error: ' + e.message + '</div>';
+    return;
+  }
   if (!dirs || dirs.length === 0) {
-    content.innerHTML = '<div class="loading">No session directories found</div>';
+    content.innerHTML = '<div class="loading">No session directories found<br>Response was: ' + JSON.stringify(dirs) + '</div>';
     return;
   }
   content.innerHTML = '<div class="tile-grid">' +
