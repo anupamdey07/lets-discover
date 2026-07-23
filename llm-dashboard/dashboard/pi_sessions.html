@@ -55,6 +55,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; ba
 .loading { color: var(--text2); text-align: center; padding: 40px; }
 .error { color: var(--red); text-align: center; padding: 20px; }
 .controls { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+/* Compact entries (custom, compaction, other) */
+.brief-compact { font-size: 0.72rem; padding: 3px 10px; margin: 1px 0; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brief-compact:hover { background: var(--surface2); color: var(--text); }
+.brief-compact.expanded { white-space: normal; overflow: visible; text-overflow: clip; }
+.brief-compact + .brief-full { display: none; }
+.brief-compact.expanded + .brief-full { display: block; font-size: 0.7rem; }
 </style>
 </head>
 <body>
@@ -235,24 +241,25 @@ async function renderParse() {
     return;
   }
   const config = {
-    user:    { emoji: '📝', label: 'User Messages' },
-    assistant: { emoji: '💬', label: 'Assistant Messages' },
-    toolCall:  { emoji: '🔧', label: 'Tool Calls' },
-    thinking:  { emoji: '🧠', label: 'Thinking' },
-    toolResult:{ emoji: '📤', label: 'Tool Results' },
-    custom:    { emoji: '🔌', label: 'Custom Events' },
-    compaction:{ emoji: '📦', label: 'Compactions' },
-    other:     { emoji: '📄', label: 'Other Events' },
+    user:    { emoji: '📝', label: 'User Messages', compact: false },
+    assistant: { emoji: '💬', label: 'Assistant Messages', compact: false },
+    toolCall:  { emoji: '🔧', label: 'Tool Calls', compact: false },
+    thinking:  { emoji: '🧠', label: 'Thinking', compact: false },
+    toolResult:{ emoji: '📤', label: 'Tool Results', compact: false },
+    custom:    { emoji: '🔌', label: 'Custom Events', compact: true },
+    compaction:{ emoji: '📦', label: 'Compactions', compact: true },
+    other:     { emoji: '📄', label: 'Other Events', compact: true },
   };
   let html = '';
   let hasAny = false;
   for (const [type, entries] of Object.entries(parsed)) {
     if (!entries || entries.length === 0) continue;
     hasAny = true;
-    const cfg = config[type] || { emoji: '📄', label: type };
+    const cfg = config[type] || { emoji: '📄', label: type, compact: false };
+    const cls = cfg.compact ? 'brief-compact' : 'brief';
     html += `<div class="group"><div class="group-header">${cfg.emoji} ${cfg.label} <span class="group-badge ${type}">${entries.length}</span></div>`;
     for (const entry of entries) {
-      html += `<div class="brief" onclick="this.classList.toggle('expanded')">${escapeHtml(entry.brief)}</div>
+      html += `<div class="${cls}" onclick="this.classList.toggle('expanded')">${escapeHtml(entry.brief)}</div>
 <div class="brief-full">${escapeHtml(entry.full)}</div>`;
     }
     html += `</div>`;

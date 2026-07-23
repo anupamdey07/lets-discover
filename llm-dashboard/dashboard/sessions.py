@@ -112,7 +112,26 @@ def _extract_brief(entry: dict) -> str:
 
     if etype == "custom":
         ctype = entry.get("customType", "custom")
+        data = entry.get("data", {})
         return f"[{ctype}]"
+
+    # Enriched briefs for "other" entry types
+    if etype == "model_change":
+        prov = entry.get("provider", "")
+        model = entry.get("modelId", "")
+        return f"🧠 Model: {prov}/{model}"
+
+    if etype == "thinking_level_change":
+        level = entry.get("thinkingLevel", "")
+        return f"💭 Thinking: {level}"
+
+    if etype == "session_info":
+        name = entry.get("name", "")
+        return f"📋 Session: {name}"
+
+    if etype == "custom_message":
+        msg = entry.get("message", "")
+        return f"📎 {msg}"[:120]
 
     return f"[{etype}]"
 
@@ -154,6 +173,24 @@ def _extract_full(entry: dict) -> str:
         ctype = entry.get("customType", "custom")
         data = entry.get("data", {})
         return f"[{ctype}]\n{json.dumps(data, indent=2)}"
+
+    if etype == "model_change":
+        prov = entry.get("provider", "")
+        model = entry.get("modelId", "")
+        return f"Provider: {prov}\nModel: {model}"
+
+    if etype == "thinking_level_change":
+        level = entry.get("thinkingLevel", "")
+        return f"Thinking Level: {level}"
+
+    if etype == "session_info":
+        name = entry.get("name", "")
+        ts = entry.get("timestamp", "")
+        return f"Session Name: {name}\nTimestamp: {ts}"
+
+    if etype == "custom_message":
+        msg = entry.get("message", "")
+        return f"Message: {msg}"
 
     return json.dumps(entry, indent=2)
 
