@@ -107,3 +107,44 @@ def test_parse_session_empty_file():
         result = parse_session(str(session_file))
         for key in result:
             assert len(result[key]) == 0
+
+
+def test_parse_session_with_real_file():
+    """Parse an actual session JSONL file from ~/.pi/agent/sessions/."""
+    import os
+    sessions_dir = Path.home() / ".pi" / "agent" / "sessions"
+    # Find a session with toolCall entries
+    real_file = None
+    for d in sorted(sessions_dir.iterdir(), reverse=True):
+        if not d.is_dir():
+            continue
+        for f in d.glob("*.jsonl"):
+            if sum(1 for _ in open(f)) > 10:
+                real_file = str(f)
+                break
+        if real_file:
+            break
+    assert real_file is not None, f"No real session file found under {sessions_dir}"
+    result = parse_session(real_file)
+    # Should have at least user and assistant groups
+    assert "user" in result
+    assert "assistant" in result
+    assert "toolCall" in result
+    # Should have at least one user message
+    assert len(result["user"]) >= 1
+    assert len(result["assistant"]) >= 1
+    # Each entry has brief and full
+    for entry in result["user"][:3]:
+        assert "brief" in entry
+        assert "full" in entry
+        assert isinstance(entry["brief"], str)
+        assert isinstance(entry["full"], str)
+        assert len(entry["brief"]) > 0
+    # Briefs should be truncated
+    for entry in result["user"][:3]:
+        assert len(entry["brief"]) <= 123
+    # toolCall entries should have tool names in brief
+    if len(result["toolCall"]) > 0:
+        tc = result["toolCall"][0]
+        assert "brief" in tc
+        assert "full" in tc
