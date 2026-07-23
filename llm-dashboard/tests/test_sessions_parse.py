@@ -14,7 +14,7 @@ def test_list_directories_returns_sorted_names():
         (Path(tmpdir) / "beta").mkdir()
         (Path(tmpdir) / "gamma").mkdir()
         result = list_directories(Path(tmpdir))
-        assert result == ["alpha", "beta", "gamma"]
+        assert result == [{"name": "alpha", "count": 0}, {"name": "beta", "count": 0}, {"name": "gamma", "count": 0}]
 
 
 def test_list_directories_ignores_files():
@@ -23,7 +23,7 @@ def test_list_directories_ignores_files():
         (Path(tmpdir) / "dir1").mkdir()
         (Path(tmpdir) / "file.txt").write_text("hello")
         result = list_directories(Path(tmpdir))
-        assert result == ["dir1"]
+        assert result == [{"name": "dir1", "count": 0}]
 
 
 def test_list_sessions_returns_metadata():
@@ -44,7 +44,7 @@ def test_list_sessions_returns_metadata():
 
 
 def test_parse_session_groups_by_type():
-    """Entries are grouped into user, assistant, toolCall, thinking, custom, compaction."""
+    """Entries are grouped into user, assistant, toolCall, thinking, toolResult, custom, compaction."""
     with tempfile.TemporaryDirectory() as tmpdir:
         session_file = Path(tmpdir) / "test.jsonl"
         session_file.write_text(
@@ -59,7 +59,9 @@ def test_parse_session_groups_by_type():
         assert "assistant" in result
         assert "toolCall" in result
         assert "thinking" in result
+        assert "toolResult" in result
         assert "compaction" in result
+        assert "other" in result
         assert len(result["user"]) == 1
         assert len(result["assistant"]) == 1
         assert len(result["toolCall"]) == 1
@@ -105,46 +107,39 @@ def test_parse_session_empty_file():
             json.dumps({"type": "session", "id": "x", "timestamp": "2026-07-22T10:00:00.000Z", "cwd": "/home/test"}) + "\n"
         )
         result = parse_session(str(session_file))
+        assert "session" not in result
         for key in result:
             assert len(result[key]) == 0
 
 
-def test_parse_session_with_real_file():
-    """Parse an actual session JSONL file from ~/.pi/agent/sessions/."""
-    import os
-    sessions_dir = Path.home() / ".pi" / "agent" / "sessions"
-    # Find a session with toolCall entries
-    real_file = None
-    for d in sorted(sessions_dir.iterdir(), reverse=True):
-        if not d.is_dir():
-            continue
-        for f in d.glob("*.jsonl"):
-            if sum(1 for _ in open(f)) > 10:
-                real_file = str(f)
-                break
-        if real_file:
-            break
-    assert real_file is not None, f"No real session file found under {sessions_dir}"
-    result = parse_session(real_file)
-    # Should have at least user and assistant groups
-    assert "user" in result
-    assert "assistant" in result
-    assert "toolCall" in result
-    # Should have at least one user message
-    assert len(result["user"]) >= 1
-    assert len(result["assistant"]) >= 1
-    # Each entry has brief and full
-    for entry in result["user"][:3]:
-        assert "brief" in entry
-        assert "full" in entry
-        assert isinstance(entry["brief"], str)
-        assert isinstance(entry["full"], str)
-        assert len(entry["brief"]) > 0
-    # Briefs should be truncated
-    for entry in result["user"][:3]:
-        assert len(entry["brief"]) <= 123
-    # toolCall entries should have tool names in brief
-    if len(result["toolCall"]) > 0:
-        tc = result["toolCall"][0]
-        assert "brief" in tc
-        assert "full" in tc
+def test_parse_session_includes_toolResults():
+    """ToolResult messages are captured in their own group."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        session_file = Path(tmpdir) / "test.jsonl"
+        session_file.write_text(
+            json.dumps({"type": "session", "id": "x", "timestamp": "2026-07-22T10:00:00.000Z", "cwd": "/home/test"}) + "\n"
+            + json.dumps({"type": "message", "message": {"role": "toolResult", "toolName": "bash", "content": [{"type": "text", "text": "hello world"}]}}) + "\n"
+            + json.dumps({"type": "message", "message": {"role": "toolResult", "toolName": "read", "content": [{"type": "text", "text": "file contents here"}]}}) + "\n"
+        )
+        result = parse_session(str(session_file))
+        assert "toolResult" in result
+        assert len(result["toolResult"]) == 2
+        assert "bash" in result["toolResult"][0]["brief"]
+        assert "read" in result["toolResult"][1]["brief"]
+        assert result["toolResult"][0]["full"] == "hello world"
+
+
+def test_parse_session_handles_unknown_types():
+    """Unknown entry types (model_change, thinking_level_change, etc.) go to 'other' group without crashing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        session_file = Path(tmpdir) / "test.jsonl"
+        session_file.write_text(
+            json.dumps({"type": "session", "id": "x", "timestamp": "2026-07-22T10:00:00.000Z", "cwd": "/home/test"}) + "\n"
+            + json.dumps({"type": "model_change", "id": "abc", "provider": "qwen"}) + "\n"
+            + json.dumps({"type": "thinking_level_change", "id": "def", "thinkingLevel": "off"}) + "\n"
+            + json.dumps({"type": "custom_message", "id": "ghi"}) + "\n"
+            + json.dumps({"type": "session_info", "id": "jkl"}) + "\n"
+        )
+        result = parse_session(str(session_file))
+        assert "other" in result
+        assert len(result["other"]) == 4
