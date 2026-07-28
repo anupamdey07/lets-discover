@@ -55,8 +55,8 @@ Two proxy scripts, identical logic, different `model_name` and `PORT`:
 ## 4. Memory Allocation
 
 ```
-gpu_util_total = util_35 + util_27 = 0.40 + 0.35 = 0.75
-buffer = 1.0 - 0.75 = 0.25 (30.3 GiB)
+gpu_util_total = util_35 + util_27 = 0.43 + 0.35 = 0.78
+buffer = 1.0 - 0.78 = 0.22 (26.6 GiB)
 ```
 
 KV cache per-token (FP8):

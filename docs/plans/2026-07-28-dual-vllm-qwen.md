@@ -1,7 +1,7 @@
 # Dual vLLM: Qwen3.6-35B-A3B-FP8 + Qwen3.5-27B-FP8 on DGX Spark GB10
 
 **Date:** 2026-07-28  
-**Status:** Proposed  
+**Status:** Applied  
 **Goal:** Run two Qwen models simultaneously on a single NVIDIA GB10 (128 GB unified memory) using separate vLLM Docker containers.
 
 ## Architecture
@@ -13,8 +13,8 @@ vllm-qwen (35B MoE)         vllm-qwen27b (27B Dense)
   port 8136 (vLLM raw)        port 8134 (vLLM raw)
   port 8137 (proxy no-think)  port 8135 (proxy no-think)
   model: Qwen3.6-35B-A3B-FP8  model: Qwen3.5-27B-FP8
-  util: 0.40                  util: 0.35
-  ctx: 131072                 ctx: 65536
+  util: 0.43                  util: 0.35
+  ctx: 262144                 ctx: 131072
   seqs: 2                     seqs: 1
 ```
 
@@ -29,13 +29,13 @@ Each container runs:
 --port 8000
 --served-model-name qwen35a3b-fp8
 --quantization fp8
---max-model-len 131072
+--max-model-len 262144
 --kv-cache-dtype fp8
 --enable-prefix-caching
 --enable-chunked-prefill
 --max-num-batched-tokens 4096
 --max-num-seqs 2
---gpu-memory-utilization 0.40
+--gpu-memory-utilization 0.43
 --tensor-parallel-size 1
 --enable-auto-tool-choice
 --tool-call-parser qwen3_coder
@@ -49,11 +49,11 @@ Each container runs:
 --port 8000
 --served-model-name qwen35-27b-fp8
 --quantization fp8
---max-model-len 65536
+--max-model-len 131072
 --kv-cache-dtype fp8
 --enable-prefix-caching
 --enable-chunked-prefill
---max-num-batched-tokens 2048
+--max-num-batched-tokens 4096
 --max-num-seqs 1
 --gpu-memory-utilization 0.35
 --tensor-parallel-size 1
@@ -67,16 +67,17 @@ Each container runs:
 
 ## Memory Budget
 
-| Component | 35B @ 0.40 | 27B @ 0.35 |
+| Component | 35B @ 0.43 | 27B @ 0.35 |
 |---|---|---|
-| Budget (GiB) | 48.4 | 42.3 |
-| Weights (FP8) | −35.0 | −29.0 |
-| CUDA overhead | −3.0 | −2.5 |
-| KV cache available | 10.4 | 10.8 |
-| KV cache needed | 10.0 (131K×2) | 8.0 (64K×1) |
-| **Margin** | **+0.4** | **+2.8** |
-| Combined util | 0.75 | |
-| Buffer (OS/CPU) | 30.3 GiB (25%) | |
+| Budget (GiB) | 55.3 | 42.3 |
+| Weights (FP8) | −34.2 | −27.6 |
+| CUDA overhead | −0.5 | −0.4 |
+| KV cache available | 20.6 | 19.8 |
+| KV cache needed | 20.0 (262K×2) | 16.0 (131K×1) |
+| **Margin** | **+0.6** | **+3.8** |
+| Combined util | 0.78 | |
+| Buffer (OS/CPU) | 21 GiB (17%) | |
+| Swap | 32 GiB (resized from 16G) | |
 
 ## Port Map
 
