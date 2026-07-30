@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen-Defiant-9B Benchmark Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --success: #22c55e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 2rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--text-secondary); font-size: 0.95rem; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        thead { background: #010409; }
+        th {
+            text-align: left;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        td {
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+        .benchmark { font-weight: 500; }
+        .score { font-weight: 600; color: var(--accent-blue); }
+        .status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status.done { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .status.pending { background: rgba(242, 177, 44, 0.15); color: #d29922; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Qwen-Defiant-9B Benchmark Dashboard</h1>
+            <p class="subtitle">Local evaluation framework for model performance tracking</p>
+            
+            <div class="stats-row" style="display:flex; gap:2rem; margin:1.5rem 0;">
+                <div class="stat-card" style="background:var(--bg-secondary); padding:1rem 1.5rem; border:1px solid var(--border-color); border-radius:6px;">
+                    <div style="color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Active Model</div>
+                    <div style="font-size:1.5rem; font-weight:600; color:var(--accent-blue);">Qwen-Defiant-9B</div>
+                </div>
+                <div class="stat-card" style="background:var(--bg-secondary); padding:1rem 1.5rem; border:1px solid var(--border-color); border-radius:6px;">
+                    <div style="color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">API Endpoint</div>
+                    <div style="font-size:1.5rem; font-weight:600; color:var(--accent-blue);">127.0.0.1:8130</div>
+                </div>
+                <div class="stat-card" style="background:var(--bg-secondary); padding:1rem 1.5rem; border:1px solid var(--border-color); border-radius:6px;">
+                    <div style="color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;">Benchmarks Run</div>
+                    <div style="font-size:1.5rem; font-weight:600; color:var(--accent-blue);">1</div>
+                </div>
+            </div>
+        </header>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Benchmark</th>
+                    <th>Score</th>
+                    <th>Status</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="benchmark HumanEval">
+                    <td>HumanEval</td>
+                    <td class="score">0.00%</td>
+                    <td class="status done">Done</td>
+                    <td class="timestamp">2026-07-30T22:16:00</td>
+                </tr>
+                <tr class="benchmark ARC_AGI">
+                    <td>ARC-AGI</td>
+                    <td class="score">-</td>
+                    <td class="status pending">Pending</td>
+                    <td class="timestamp">-</td>
+                </tr>
+                <tr class="benchmark SWE_Bench">
+                    <td>SWE-Bench</td>
+                    <td class="score">-</td>
+                    <td class="status pending">Pending</td>
+                    <td class="timestamp">-</td>
+                </tr>
+                <tr class="benchmark Needle_In_Haystack">
+                    <td>Needle In Haystack</td>
+                    <td class="score">-</td>
+                    <td class="status pending">Pending</td>
+                    <td class="timestamp">-</td>
+                </tr>
+                <tr class="benchmark LiveBench">
+                    <td>LiveBench</td>
+                    <td class="score">-</td>
+                    <td class="status pending">Pending</td>
+                    <td class="timestamp">-</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <footer style="margin-top:2rem; padding-top:1rem; border-top:1px solid var(--border-color); color:var(--text-secondary); font-size:0.8rem;">
+            Dashboard generated for Qwen-Defiant-9B local benchmarking framework.
+        </footer>
+    </div>
+
+    <script>
+        // Dynamic update function for adding new benchmarks
+        window.updateDashboard = function(data) {
+            if (!data || typeof data !== 'object') return;
+            
+            // Update stats
+            const ranCount = 1 + (data.benchmark_name ? 1 : 0);
+            document.querySelector('.stat-card:nth-child(3) .stat-value')?.textContent = ranCount;
+            
+            // Update table rows
+            const rows = {};
+            document.querySelectorAll('tbody tr').forEach(row => {
+                const benchName = row.querySelector('td.benchmark')?.textContent.trim();
+                rows[benchName] = row;
+            });
+            
+            if (rows[data.benchmark_name]) {
+                rows[data.benchmark_name].querySelector('.score').textContent = data.score + '%';
+                rows[data.benchmark_name].querySelector('.status').className = 'status ' + (data.status || 'pending');
+                rows[data.benchmark_name].querySelector('.timestamp').textContent = data.timestamp || '-';
+            } else {
+                const tbody = document.querySelector('tbody');
+                const newRow = tbody.insertRow(tbody.rows.length);
+                const cells = {};
+                newRow.innerHTML = `
+                    <td>${data.benchmark}</td>
+                    <td class="score">${data.score || '-'}%</td>
+                    <td class="status ${data.status || 'pending'}">${data.status || 'Pending'}</td>
+                    <td class="timestamp">${data.timestamp || '-'}</td>
+                `;
+                rows[data.benchmark_name] = newRow;
+            }
+        };
+    </script>
+</body>
+</html>
