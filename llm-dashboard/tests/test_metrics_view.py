@@ -55,3 +55,55 @@ def test_deepseek_status_is_returned_by_models_api_and_metrics_selector(monkeypa
     index = (Path(web.__file__).parent / "index.html").read_text()
     assert "Object.values(modelsData).filter(m => m.metrics_port)" in index
     assert "${escapeHtml(m.label)} :${m.port}" in index
+    assert "renderMetricSamples(samples)" in index
+
+
+def test_metrics_api_preserves_all_prometheus_samples(monkeypatch):
+    """The metrics API keeps labels and repeated metric names for the full table."""
+
+    captured = {}
+    prometheus = """# HELP llama_tokens_total Tokens
+llama_tokens_total{slot=\"0\"} 12
+llama_tokens_total{slot=\"1\"} 7
+llama_requests 1
+"""
+
+    class FakeResponse:
+        status_code = 200
+        text = prometheus
+
+    class FakeAsyncClient:
+        def __init__(self, timeout):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return False
+
+        async def get(self, url):
+            assert url.endswith(":8081/metrics")
+            return FakeResponse()
+
+    monkeypatch.setattr(web, "get_all_status", lambda: [])
+    import httpx
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    import uvicorn
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kwargs: captured.setdefault("app", app))
+    web.serve_web(port=0)
+
+    from fastapi.testclient import TestClient
+
+    response = TestClient(captured["app"]).get("/api/metrics/deepseekv4-q3xxs")
+    assert response.status_code == 200
+    assert response.json() == {
+        "enabled": True,
+        "metrics": {"llama_tokens_total": 7.0, "llama_requests": 1.0},
+        "samples": [
+            {"name": "llama_tokens_total", "labels": 'slot="0"', "value": 12.0},
+            {"name": "llama_tokens_total", "labels": 'slot="1"', "value": 7.0},
+            {"name": "llama_requests", "labels": "", "value": 1.0},
+        ],
+    }

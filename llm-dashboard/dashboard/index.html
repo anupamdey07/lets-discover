@@ -249,6 +249,17 @@ h1 { font-size: 1.5rem; margin-bottom: 8px; color: #58a6ff; }
 .metric-chart { background: #0d1117; border: 1px solid #21262d; border-radius: 7px; padding: 10px; }
 .metric-chart h3 { color: #c9d1d9; font-size: 0.76rem; font-weight: 500; margin-bottom: 6px; }
 .metric-chart canvas { display: block; width: 100%; height: 110px; }
+.metrics-all { margin-top: 10px; background: #0d1117; border: 1px solid #21262d; border-radius: 7px; overflow: hidden; }
+.metrics-all-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; color: #c9d1d9; font-size: 0.76rem; font-weight: 500; }
+.metrics-all-count { color: #8b949e; font-size: 0.68rem; font-weight: 400; }
+.metrics-table-wrap { max-height: 360px; overflow: auto; border-top: 1px solid #21262d; }
+.metrics-table { width: 100%; border-collapse: collapse; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.68rem; }
+.metrics-table th, .metrics-table td { padding: 6px 10px; border-bottom: 1px solid #21262d; text-align: left; vertical-align: top; }
+.metrics-table th { position: sticky; top: 0; background: #161b22; color: #8b949e; font-weight: 500; }
+.metrics-table td:first-child { color: #79c0ff; white-space: nowrap; }
+.metrics-table td:nth-child(2) { color: #8b949e; word-break: break-all; }
+.metrics-table td:last-child { color: #7ee787; text-align: right; white-space: nowrap; }
+.metrics-table tr:last-child td { border-bottom: 0; }
 @media (max-width: 760px) { .metrics-kpis { grid-template-columns: repeat(3, 1fr); } .metrics-charts { grid-template-columns: 1fr; } .metrics-selector { width: 100%; } .metrics-selector select { flex: 1; min-width: 0; } }
 
 
@@ -454,6 +465,16 @@ function drawMetricChart(canvas, values, color) {
   ctx.stroke();
 }
 
+function renderMetricSamples(samples) {
+  if (!samples.length) return '<div class="metrics-state">No Prometheus samples returned.</div>';
+  return `<div class="metrics-all">
+    <div class="metrics-all-header"><span>All Prometheus metrics</span><span class="metrics-all-count">${samples.length} samples</span></div>
+    <div class="metrics-table-wrap"><table class="metrics-table"><thead><tr><th>Metric</th><th>Labels</th><th>Value</th></tr></thead><tbody>
+      ${samples.map(sample => `<tr><td>${escapeHtml(sample.name)}</td><td>${escapeHtml(sample.labels || '—')}</td><td>${escapeHtml(String(sample.value))}</td></tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
+}
+
 function renderMetrics(model, result) {
   const body = document.getElementById('metrics-body');
   if (!result.enabled) {
@@ -462,6 +483,7 @@ function renderMetrics(model, result) {
     return;
   }
   const m = result.metrics || {};
+  const samples = Array.isArray(result.samples) ? result.samples : Object.entries(m).map(([name, value]) => ({name, labels: '', value}));
   const prefill = metricValue(m, [/prompt.*tokens.*second/i, /prompt.*throughput/i]);
   const decode = metricValue(m, [/tokens.*second/i, /generation.*throughput/i, /predicted.*second/i]);
   const promptTime = metricValue(m, [/prompt.*processing.*total/i, /prompt.*time/i]);
@@ -479,7 +501,7 @@ function renderMetrics(model, result) {
     <div class="metric-kpi"><div class="metric-kpi-label">Decode time</div><div class="metric-kpi-value">${formatMetric(decodeTime, ' ms')}</div></div>
     <div class="metric-kpi"><div class="metric-kpi-label">Busy slots</div><div class="metric-kpi-value">${formatMetric(busy)}</div></div>
     <div class="metric-kpi"><div class="metric-kpi-label">Requests</div><div class="metric-kpi-value">${formatMetric(requests)}</div></div>
-  </div><div class="metrics-charts"><div class="metric-chart"><h3>Prefill throughput</h3><canvas id="prefill-chart"></canvas></div><div class="metric-chart"><h3>Decode throughput</h3><canvas id="decode-chart"></canvas></div></div>`;
+  </div><div class="metrics-charts"><div class="metric-chart"><h3>Prefill throughput</h3><canvas id="prefill-chart"></canvas></div><div class="metric-chart"><h3>Decode throughput</h3><canvas id="decode-chart"></canvas></div></div>${renderMetricSamples(samples)}`;
   drawMetricChart(document.getElementById('prefill-chart'), metricsHistory.prefill, '#58a6ff');
   drawMetricChart(document.getElementById('decode-chart'), metricsHistory.decode, '#7ee787');
 }

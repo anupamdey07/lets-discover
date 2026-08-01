@@ -7,6 +7,7 @@ Access at: http://localhost:8765/
 from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 import sys
@@ -38,6 +39,32 @@ from .sessions import list_directories, list_sessions, parse_session, validate_s
 
 
 INDEX_HTML = Path(__file__).parent / "index.html"
+
+
+def parse_prometheus_metrics(text: str) -> dict:
+    """Parse Prometheus samples while retaining labels and duplicate names."""
+    metrics = {}
+    samples = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        metric_ref, separator, value_text = line.rpartition(" ")
+        if not separator:
+            continue
+        try:
+            value = float(value_text)
+        except ValueError:
+            continue
+        if not math.isfinite(value):
+            continue
+        metric_ref = metric_ref.strip()
+        metric_name, _, labels = metric_ref.partition("{")
+        labels = labels[:-1] if labels.endswith("}") else labels
+        metrics[metric_name] = value
+        samples.append({"name": metric_name, "labels": labels, "value": value})
+    return {"metrics": metrics, "samples": samples}
+
 
 def serve_web(port: int = 8765):
     """Start the FastAPI web server."""
@@ -107,19 +134,8 @@ def serve_web(port: int = 8765):
                     "error": "llama.cpp metrics are not enabled; restart with --metrics",
                 })
 
-            metrics = {}
-            for line in response.text.splitlines():
-                if not line or line.startswith("#"):
-                    continue
-                key, _, value = line.rpartition(" ")
-                if not key:
-                    continue
-                metric_name = key.split("{", 1)[0]
-                try:
-                    metrics[metric_name] = float(value)
-                except ValueError:
-                    continue
-            return JSONResponse({"enabled": True, "metrics": metrics})
+            parsed = parse_prometheus_metrics(response.text)
+            return JSONResponse({"enabled": True, **parsed})
         except (httpx.HTTPError, OSError) as exc:
             return JSONResponse({"enabled": False, "error": str(exc)})
 
