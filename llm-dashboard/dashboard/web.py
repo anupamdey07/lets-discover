@@ -14,7 +14,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from .config import MODELS, STATE_DIR
+from .config import MODEL_MAP, MODELS, STATE_DIR
 from .process_manager import (
     get_all_status,
     get_logs,
@@ -85,6 +85,43 @@ def serve_web(port: int = 8765):
     @app.get("/api/stats")
     async def api_stats():
         return JSONResponse(get_system_stats())
+
+    @app.get("/api/metrics/{name}")
+    async def api_metrics(name: str):
+        """Proxy Prometheus metrics for a configured llama.cpp model."""
+        import httpx
+
+        model = MODEL_MAP.get(name)
+        if model is None:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        if model.metrics_port is None:
+            return JSONResponse({"enabled": False, "error": "metrics are not configured for this model"})
+
+        try:
+            async with httpx.AsyncClient(timeout=2.5) as client:
+                response = await client.get(f"http://127.0.0.1:{model.metrics_port}/metrics")
+            if response.status_code != 200:
+                return JSONResponse({
+                    "enabled": False,
+                    "status_code": response.status_code,
+                    "error": "llama.cpp metrics are not enabled; restart with --metrics",
+                })
+
+            metrics = {}
+            for line in response.text.splitlines():
+                if not line or line.startswith("#"):
+                    continue
+                key, _, value = line.rpartition(" ")
+                if not key:
+                    continue
+                metric_name = key.split("{", 1)[0]
+                try:
+                    metrics[metric_name] = float(value)
+                except ValueError:
+                    continue
+            return JSONResponse({"enabled": True, "metrics": metrics})
+        except (httpx.HTTPError, OSError) as exc:
+            return JSONResponse({"enabled": False, "error": str(exc)})
 
     @app.post("/api/start/{name}")
     async def api_start(name: str, params: dict | None = None, force: bool = False):
