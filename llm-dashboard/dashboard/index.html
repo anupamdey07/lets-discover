@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  overflow-y: auto;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+  background: #0d1117; color: #c9d1d9; padding: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+h1 { font-size: 1.5rem; margin-bottom: 8px; color: #58a6ff; }
+.sub { color: #8b949e; font-size: 0.9rem; margin-bottom: 20px; }
+#status-bar {
+  display: flex; gap: 12px; flex-wrap: nowrap;
+  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+  padding: 6px 10px; margin-bottom: 20px; font-size: 0.7rem;
+  overflow-x: auto;
+}
+#p0-status-bar {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+  padding: 6px 10px; font-size: 0.7rem;
+}
+#p0-status-bar::-webkit-scrollbar { height: 4px; }
+#p0-status-bar::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+#status-bar::-webkit-scrollbar { height: 4px; }
+#status-bar::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+#status-bar .stat { margin-left: 0; padding-left: 0; border-left: none; white-space: nowrap; }
+.stat { display: flex; align-items: center; gap: 4px; }
+.stat-label { color: #8b949e; font-size: 0.7rem; }
+.stat-val { color: #f0f6fc; font-weight: 600; font-size: 0.7rem; }
+
+/* ── P0 status bar ── */
+#p0-status-bar {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+  padding: 6px 10px; font-size: 0.7rem; overflow-x: auto;
+}
+.p0-group-label {
+  color: #484f58; font-size: 0.65rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 2px 6px; border-radius: 3px;
+  background: #21262d;
+  flex-shrink: 0;
+}
+.p0-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 10px;
+  background: #0d1117; border: 1px solid #30363d;
+  font-size: 0.72rem;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+.p0-chip:hover { border-color: #58a6ff; }
+.p0-chip .p0-name { font-weight: 500; }
+.p0-chip .p0-latency { color: #484f58; font-size: 0.65rem; }
+.p0-chip .p0-port { color: #484f58; font-size: 0.6rem; }
+.p0-chip.critical::after {
+  content: '●'; color: #f0883e; font-size: 0.5rem;
+  margin-left: 1px;
+}
+.p0-chip .p0-actions { display: flex; gap: 2px; margin-left: 4px; }
+.p0-chip .p0-btn {
+  background: none; border: none; color: #484f58;
+  cursor: pointer; font-size: 0.7rem; padding: 1px 3px;
+  border-radius: 3px; transition: all 0.15s;
+}
+.p0-chip .p0-btn:hover { color: #58a6ff; background: #21262d; }
+.p0-chip .p0-btn.restart-btn:hover { color: #d29922; }
+.p0-chip .p0-btn.logs-btn:hover { color: #58a6ff; }
+.p0-chip .p0-btn.logs-btn.active { color: #58a6ff; }
+.p0-chip.green { border-color: #238636; }
+.p0-chip.yellow { border-color: #d29922; }
+.p0-chip.red { border-color: #da3633; }
+.p0-chip.green .p0-name { color: #7ee787; }
+.p0-chip.yellow .p0-name { color: #d29922; }
+.p0-chip.red .p0-name { color: #f85149; }
+.p0-chip .p0-icon { font-size: 0.7rem; }
+
+.p0-logs-popup {
+  position: absolute; z-index: 100;
+  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+  padding: 8px; font-size: 0.72rem; max-height: 200px; overflow: auto;
+  color: #8b949e; line-height: 1.4; width: min(320px, calc(100vw - 24px));
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.p0-logs-popup pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.p0-logs-popup .close-btn {
+  position: absolute; top: 4px; right: 6px;
+  background: none; border: none; color: #484f58;
+  cursor: pointer; font-size: 0.8rem;
+}
+.p0-logs-popup .close-btn:hover { color: #f0883e; }
+
+#models { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; align-content: start; min-height: 0; }
+.card {
+  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+  padding: 14px; transition: border-color 0.2s;
+}
+.card:hover { border-color: #58a6ff; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 6px; }
+.gear-btn {
+  background: none; border: none; color: #8b949e; font-size: 1rem;
+  cursor: pointer; padding: 2px 4px; border-radius: 4px;
+  transition: all 0.15s; line-height: 1;
+}
+.gear-btn:hover { color: #58a6ff; background: #21262d; }
+.gear-btn.active { color: #58a6ff; }
+.card-header-left { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.card-header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.card-name { font-weight: 600; font-size: 1rem; }
+.badge {
+  font-size: 0.75rem; padding: 2px 8px; border-radius: 12px;
+  background: #21262d; color: #8b949e;
+}
+.badge.vllm { background: #1f3a3a; color: #7ee787; }
+.badge.llama { background: #3a1f2d; color: #ffa657; }
+.card-details { font-size: 0.85rem; color: #8b949e; margin-bottom: 10px; line-height: 1.5; }
+.card-status { font-size: 0.9rem; padding: 4px 0; margin-bottom: 10px; }
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  padding: 6px 16px; border: none; border-radius: 6px;
+  cursor: pointer; font-size: 0.85rem; font-weight: 500;
+  transition: opacity 0.2s;
+}
+.btn:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-start { background: #238636; color: #fff; }
+.btn-stop { background: #da3633; color: #fff; }
+.btn-restart { background: #0969da; color: #fff; }
+.btn-refresh { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+.btn-logs { background: #1f3a5a; color: #58a6ff; border: 1px solid #1f3a6a; }
+
+.btn-small { padding: 4px 10px; font-size: 0.75rem; }
+.card-throughput {
+  font-size: 0.8rem; color: #7ee787; margin-top: 4px; line-height: 1.4;
+  display: flex; align-items: center; gap: 6px;
+}
+.card-throughput .tp-toks { font-weight: 600; }
+.card-throughput .tp-detail { color: #8b949e; }
+
+.logs-panel {
+  margin-top: 10px; display: none;
+}
+.logs-panel.open { display: block; }
+.logs-panel pre {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+  padding: 8px; font-size: 0.75rem; max-height: 300px; overflow: auto;
+  color: #8b949e; line-height: 1.4;
+}
+
+/* ── Collapsible Settings Panel ── */
+.settings-panel {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 10px 0 0 0;
+  animation: slideDown 0.15s ease-out;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.settings-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px; padding-bottom: 8px;
+  border-bottom: 1px solid #21262d;
+}
+.settings-header span:first-child {
+  font-size: 0.8rem; font-weight: 600; color: #58a6ff;
+}
+.settings-status {
+  font-size: 0.7rem; color: #8b949e;
+}
+.settings-status.running-status { color: #f0883e; }
+.settings-status.stopped-status { color: #7ee787; }
+.param-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.param-label {
+  color: #8b949e;
+  font-size: 0.8rem;
+  min-width: 160px;
+  flex-shrink: 0;
+}
+.param-value {
+  color: #c9d1d9;
+  font-family: monospace;
+}
+.param-input {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: #c9d1d9;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  width: 120px;
+}
+.param-input:focus {
+  border-color: #58a6ff;
+  outline: none;
+}
+.param-input:disabled,
+.param-input[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #0d1117;
+}
+.param-input[type="checkbox"] {
+  width: auto;
+  accent-color: #58a6ff;
+  transform: scale(1.2);
+}
+
+.loading { text-align: center; padding: 40px; color: #8b949e; }
+
+/* ── llama.cpp metrics ── */
+.metrics-section {
+  margin-top: 22px; background: #111820; border: 1px solid #30363d;
+  border-radius: 10px; padding: 16px;
+}
+.metrics-header { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.metrics-title { color: #f0f6fc; font-size: 1rem; font-weight: 650; }
+.metrics-title small { display: block; color: #8b949e; font-size: 0.72rem; font-weight: 400; margin-top: 4px; }
+.metrics-selector { display: flex; align-items: center; gap: 8px; color: #8b949e; font-size: 0.75rem; }
+.metrics-selector select { background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 5px; padding: 7px 10px; min-width: 210px; }
+.metrics-state { padding: 12px; border: 1px dashed #484f58; border-radius: 7px; color: #8b949e; font-size: 0.78rem; line-height: 1.5; }
+.metrics-state strong { color: #d29922; }
+.metrics-kpis { display: grid; grid-template-columns: repeat(6, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.metric-kpi { background: #0d1117; border: 1px solid #21262d; border-radius: 7px; padding: 10px; min-width: 0; }
+.metric-kpi-label { color: #8b949e; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metric-kpi-value { color: #7ee787; font-size: 1.1rem; font-weight: 650; margin-top: 5px; }
+.metrics-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.metric-chart { background: #0d1117; border: 1px solid #21262d; border-radius: 7px; padding: 10px; }
+.metric-chart h3 { color: #c9d1d9; font-size: 0.76rem; font-weight: 500; margin-bottom: 6px; }
+.metric-chart canvas { display: block; width: 100%; height: 110px; }
+.metrics-all { margin-top: 10px; background: #0d1117; border: 1px solid #21262d; border-radius: 7px; overflow: hidden; }
+.metrics-all-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; color: #c9d1d9; font-size: 0.76rem; font-weight: 500; }
+.metrics-all-count { color: #8b949e; font-size: 0.68rem; font-weight: 400; }
+.metrics-table-wrap { max-height: 360px; overflow: auto; border-top: 1px solid #21262d; }
+.metrics-table { width: 100%; border-collapse: collapse; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.68rem; }
+.metrics-table th, .metrics-table td { padding: 6px 10px; border-bottom: 1px solid #21262d; text-align: left; vertical-align: top; }
+.metrics-table th { position: sticky; top: 0; background: #161b22; color: #8b949e; font-weight: 500; }
+.metrics-table td:first-child { color: #79c0ff; white-space: nowrap; }
+.metrics-table td:nth-child(2) { color: #8b949e; word-break: break-all; }
+.metrics-table td:last-child { color: #7ee787; text-align: right; white-space: nowrap; }
+.metrics-table tr:last-child td { border-bottom: 0; }
+@media (max-width: 760px) { .metrics-kpis { grid-template-columns: repeat(3, 1fr); } .metrics-charts { grid-template-columns: 1fr; } .metrics-selector { width: 100%; } .metrics-selector select { flex: 1; min-width: 0; } }
+
+
+
+#toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+  padding: 10px 16px; font-size: 0.85rem;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+/* ── Hub tab bar (so legacy links to :8765 can still navigate) ── */
+.hub-tabs {
+  display: flex; gap: 4px; padding: 0; margin: -20px -20px 16px -20px;
+  background: #161b22; border-bottom: 1px solid #30363d;
+  flex-wrap: nowrap; overflow-x: auto;
+}
+.hub-tab {
+  padding: 10px 14px; font-size: 0.88rem; font-weight: 500; text-decoration: none;
+  color: #8b949e; border-bottom: 2px solid transparent; transition: all 0.15s;
+  white-space: nowrap; flex-shrink: 0;
+}
+.hub-tab:hover { color: #c9d1d9; background: #21262d; }
+.hub-tab.active { color: #c9d1d9; border-bottom-color: #58a6ff; background: #21262d; }
+/* hide own tab bar when embedded in the Hub iframe (Hub already provides tabs) */
+body.embedded .hub-tabs { display: none; }
+</style>
+</head>
+<body>
+<script>if(window.self!==window.top)document.body.classList.add('embedded');</script>
+<nav class="hub-tabs" id="hub-tabs">
+  <a class="hub-tab active" data-tab="manager">🖥️ LLM Manager</a>
+</nav>
+<h1>🖥️ LLM Manager</h1>
+<p class="sub">Local model manager — GB10 · 128GB unified · Blackwell GPU</p>
+
+<div id="status-bar"><div class="loading">Loading...</div></div>
+<div id="p0-status-bar" style="margin-bottom:16px"></div>
+<div id="models"><div class="loading">Loading models...</div></div>
+
+<section class="metrics-section" aria-labelledby="metrics-heading">
+  <div class="metrics-header">
+    <div class="metrics-title" id="metrics-heading">llama.cpp Runtime Metrics <small>Live inference telemetry · refreshes every 10 seconds</small></div>
+    <label class="metrics-selector">Monitor model <select id="metrics-model" onchange="selectMetricsModel(this.value)"><option>Loading...</option></select></label>
+  </div>
+  <div id="metrics-body" class="metrics-state">Select a llama.cpp model to monitor.</div>
+</section>
+
+<div id="toast"></div>
+
+<script>
+
+let autoRefresh = null;
+let modelsData = {};
+let metricsModel = localStorage.getItem('llm-metrics-model') || '';
+const metricsHistory = { prefill: [], decode: [] };
+
+const REFRESH_MS = 10000;  // global 10s refresh
+
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'error' ? '#da3633' : '#161b22';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function statBar(html) {
+  document.getElementById('status-bar').innerHTML = html;
+}
+
+async function toggleLogs(name, btn) {
+  const panel = document.getElementById('logs-' + name);
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    btn.textContent = '📋 Logs';
+    return;
+  }
+  try {
+    const r = await fetch('/api/logs/' + name + '?lines=30');
+    const data = await r.json();
+    panel.innerHTML = '<pre>' + escapeHtml(data.logs.join('\n')) + '</pre>';
+    panel.classList.add('open');
+    btn.textContent = '📋 Hide';
+    panel.scrollTop = panel.scrollHeight;
+  } catch(e) {
+    toast('Failed to load logs', 'error');
+  }
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function renderCards(data) {
+  const container = document.getElementById('models');
+  let html = '';
+  // Store model data for lookups (e.g. memory warning on start)
+  modelsData = {};
+  for (const m of data) {
+    modelsData[m.name] = m;
+    let icon, statusText, statusClass;
+    if (m.healthy) { icon = '🟢'; statusText = 'Healthy'; statusClass = 'healthy'; }
+    else if (m.running) { icon = '🟡'; statusText = 'Running (unhealthy)'; statusClass = 'unhealthy'; }
+    else { icon = '🔴'; statusText = 'Stopped'; statusClass = 'stopped'; }
+    const lat = m.healthy_latency_ms ? ` (${m.healthy_latency_ms}ms)` : '';
+    const restartInfo = m.auto_restart ? ` · ${m.restarts} restarts` : '';
+    html += `
+      <div class="card" id="card-${m.name}">
+        <div class="card-header">
+          <span class="card-header-left">
+            <span class="card-name">${icon} ${m.label}</span>
+            ${m.param_schema ? `<button class="gear-btn" onclick="togglePanel('${m.name}')" title="Model Parameters">⚙️</button>` : ''}
+          </span>
+          <span class="card-header-right">
+            <span class="badge ${m.engine}">${m.engine.toUpperCase()}</span>
+          </span>
+        </div>
+
+        <!-- Collapsible Settings Panel -->
+        ${m.param_schema ? `
+        <div class="settings-panel" id="panel-${m.name}" style="display:none">
+          <div class="settings-header">
+            <span>⚙️ ${m.label} — Parameters</span>
+            <span class="settings-status ${m.running ? 'running-status' : 'stopped-status'}">
+              ${m.running ? '● Running — read-only' : '● Stopped — editable'}
+            </span>
+          </div>
+          ${m.param_schema.map(p => {
+            const isBool = p.type === 'bool';
+            const checked = isBool && p.value === 'true' ? 'checked' : '';
+            return `
+            <div class="param-row">
+              <span class="param-label">${p.name}:</span>
+              ${isBool ?
+                `<input type="checkbox" ${checked} data-param-name="${p.name}" data-model="${m.name}" class="param-input" ${p.readonly || m.running ? 'disabled' : ''} onchange="saveParam('${m.name}', '${p.name}', this.checked ? 'true' : 'false')">` :
+                `<input type="${p.type === 'int' ? 'number' : 'text'}" value="${p.value}" data-param-name="${p.name}" data-model="${m.name}" class="param-input" ${p.readonly || m.running ? 'disabled' : ''} onchange="saveParam('${m.name}', '${p.name}', this.value)">`
+              }
+            </div>`;
+          }).join('')}
+        </div>
+        ` : ''}
+        <div class="card-details">
+          Port ${m.port} · ${m.memory_gb}GB · ${m.name}
+        </div>
+        <div class="card-status">
+          <strong>${statusText}</strong>${lat}${restartInfo}
+          ${m.pid ? ` · PID ${m.pid}` : ''}
+        </div>
+        <div class="card-throughput" style="display:${m.toks_per_sec > 0 ? '' : 'none'}">
+          <span class="tp-toks">🚀 ${m.toks_per_sec} toks/s</span>
+          ${m.requests_running > 0 ? `<span class="tp-detail">· ${m.requests_running} reqs</span>` : ''}
+          ${m.cache_hit_pct > 0 ? `<span class="tp-detail">· 💾 ${m.cache_hit_pct}%</span>` : ''}
+        </div>
+<div class="card-actions" style="margin-top:12px">
+          <button class="btn btn-start" onclick="doStart('${m.name}')" ${m.running ? 'disabled' : ''}>▶ Start</button>
+          <button class="btn btn-stop" onclick="doStop('${m.name}')" ${!m.running ? 'disabled' : ''}>⏹ Stop</button>
+          <button class="btn btn-logs" onclick="toggleLogs('${m.name}', this)">📋 Logs</button>
+          <button class="btn btn-refresh" onclick="fetchAll()">⟳</button>
+        </div>
+
+        <div class="logs-panel" id="logs-${m.name}"></div>
+
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
+function selectMetricsModel(name) {
+  metricsModel = name;
+  localStorage.setItem('llm-metrics-model', name);
+  metricsHistory.prefill.length = 0;
+  metricsHistory.decode.length = 0;
+  loadMetrics();
+}
+
+function metricValue(metrics, patterns) {
+  const key = Object.keys(metrics || {}).find(k => patterns.some(p => p.test(k)));
+  return key ? metrics[key] : null;
+}
+
+function formatMetric(value, suffix = '') {
+  return value == null || !Number.isFinite(value) ? '—' : `${value.toFixed(1)}${suffix}`;
+}
+
+function drawMetricChart(canvas, values, color) {
+  const ctx = canvas.getContext('2d');
+  const width = canvas.clientWidth * devicePixelRatio;
+  const height = canvas.clientHeight * devicePixelRatio;
+  canvas.width = width; canvas.height = height;
+  ctx.clearRect(0, 0, width, height);
+  if (values.length < 2) return;
+  const max = Math.max(...values, 1), min = Math.min(...values, 0), span = max - min || 1;
+  ctx.strokeStyle = color; ctx.lineWidth = 2 * devicePixelRatio; ctx.beginPath();
+  values.forEach((v, i) => {
+    const x = (i / (values.length - 1)) * width;
+    const y = height - ((v - min) / span) * (height - 8 * devicePixelRatio) - 4 * devicePixelRatio;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.stroke();
+}
+
+function renderMetricSamples(samples) {
+  if (!samples.length) return '<div class="metrics-state">No Prometheus samples returned.</div>';
+  return `<div class="metrics-all">
+    <div class="metrics-all-header"><span>All Prometheus metrics</span><span class="metrics-all-count">${samples.length} samples</span></div>
+    <div class="metrics-table-wrap"><table class="metrics-table"><thead><tr><th>Metric</th><th>Labels</th><th>Value</th></tr></thead><tbody>
+      ${samples.map(sample => `<tr><td>${escapeHtml(sample.name)}</td><td>${escapeHtml(sample.labels || '—')}</td><td>${escapeHtml(String(sample.value))}</td></tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
+}
+
+function renderMetrics(model, result) {
+  const body = document.getElementById('metrics-body');
+  if (!result.enabled) {
+    body.className = 'metrics-state';
+    body.innerHTML = `<strong>Metrics unavailable for ${escapeHtml(model.label)}.</strong><br>${escapeHtml(result.error || 'Restart llama.cpp with --metrics to enable this panel.')}`;
+    return;
+  }
+  const m = result.metrics || {};
+  const samples = Array.isArray(result.samples) ? result.samples : Object.entries(m).map(([name, value]) => ({name, labels: '', value}));
+  const prefill = metricValue(m, [/prompt.*tokens.*second/i, /prompt.*throughput/i]);
+  const decode = metricValue(m, [/tokens.*second/i, /generation.*throughput/i, /predicted.*second/i]);
+  const promptTime = metricValue(m, [/prompt.*processing.*total/i, /prompt.*time/i]);
+  const decodeTime = metricValue(m, [/token.*generation.*total/i, /decode.*time/i]);
+  const busy = metricValue(m, [/busy.*slots/i, /slots.*busy/i]);
+  const requests = metricValue(m, [/requests.*running/i, /active.*requests/i]);
+  metricsHistory.prefill.push(prefill || 0); metricsHistory.decode.push(decode || 0);
+  if (metricsHistory.prefill.length > 36) metricsHistory.prefill.shift();
+  if (metricsHistory.decode.length > 36) metricsHistory.decode.shift();
+  body.className = '';
+  body.innerHTML = `<div class="metrics-kpis">
+    <div class="metric-kpi"><div class="metric-kpi-label">Prefill</div><div class="metric-kpi-value">${formatMetric(prefill, ' t/s')}</div></div>
+    <div class="metric-kpi"><div class="metric-kpi-label">Decode</div><div class="metric-kpi-value">${formatMetric(decode, ' t/s')}</div></div>
+    <div class="metric-kpi"><div class="metric-kpi-label">Prompt time</div><div class="metric-kpi-value">${formatMetric(promptTime, ' ms')}</div></div>
+    <div class="metric-kpi"><div class="metric-kpi-label">Decode time</div><div class="metric-kpi-value">${formatMetric(decodeTime, ' ms')}</div></div>
+    <div class="metric-kpi"><div class="metric-kpi-label">Busy slots</div><div class="metric-kpi-value">${formatMetric(busy)}</div></div>
+    <div class="metric-kpi"><div class="metric-kpi-label">Requests</div><div class="metric-kpi-value">${formatMetric(requests)}</div></div>
+  </div><div class="metrics-charts"><div class="metric-chart"><h3>Prefill throughput</h3><canvas id="prefill-chart"></canvas></div><div class="metric-chart"><h3>Decode throughput</h3><canvas id="decode-chart"></canvas></div></div>${renderMetricSamples(samples)}`;
+  drawMetricChart(document.getElementById('prefill-chart'), metricsHistory.prefill, '#58a6ff');
+  drawMetricChart(document.getElementById('decode-chart'), metricsHistory.decode, '#7ee787');
+}
+
+async function loadMetrics() {
+  const select = document.getElementById('metrics-model');
+  const llamaModels = Object.values(modelsData).filter(m => m.metrics_port);
+  if (!llamaModels.length) { select.innerHTML = '<option>No llama.cpp models</option>'; return; }
+  if (!llamaModels.some(m => m.name === metricsModel)) metricsModel = llamaModels[0].name;
+  select.innerHTML = llamaModels.map(m => `<option value="${m.name}" ${m.name === metricsModel ? 'selected' : ''}>${escapeHtml(m.label)} :${m.port}</option>`).join('');
+  const model = llamaModels.find(m => m.name === metricsModel);
+  try { renderMetrics(model, await (await fetch('/api/metrics/' + encodeURIComponent(model.name))).json()); }
+  catch (e) { renderMetrics(model, {enabled: false, error: 'Metrics proxy unavailable.'}); }
+}
+
+async function fetchAll() {
+  try {
+    const [sysRes, modelsRes] = await Promise.all([
+      fetch('/api/stats'),
+      fetch('/api/models')
+    ]);
+    const sys = await sysRes.json();
+    const models = await modelsRes.json();
+
+    const gpu = sys.gpu || {};
+    const mem = sys.memory || {};
+    let barHtml = '';
+    if (!gpu.error) {
+      barHtml += `<div class="stat"><span class="stat-label">🖥️</span><span class="stat-val">${gpu.name || 'GPU'}</span></div>`;
+      barHtml += `<div class="stat"><span class="stat-label">🌡️</span><span class="stat-val">${gpu.temperature_c || '?'}°C</span></div>`;
+      barHtml += `<div class="stat"><span class="stat-label">📊</span><span class="stat-val">${gpu.utilization?.gpu_percent || 0}%</span></div>`;
+      if (gpu.memory) {
+        barHtml += `<div class="stat"><span class="stat-label">💾</span><span class="stat-val">${gpu.memory.used_gb.toFixed(0)}/${gpu.memory.total_gb.toFixed(0)}GB</span></div>`;
+      }
+    }
+    barHtml += `<div class="stat"><span class="stat-label">🧠</span><span class="stat-val">${mem.available_gb?.toFixed(0) || '?'}GB free</span></div>`;
+    barHtml += `<div class="stat"><span class="stat-label">⚙️</span><span class="stat-val">${sys.cpu_percent || 0}%</span></div>`;
+    barHtml += `<div class="stat"><span class="stat-label">❤️</span><span class="stat-val" id="heartbeat-status">—</span></div>`;
+    statBar(barHtml);
+
+    renderCards(models);
+    await loadMetrics();
+    // Load saved params for each model that has a panel
+    for (const m of models) {
+      if (m.param_schema) loadParams(m.name);
+    }
+    fetchP0Services();  // Minimal P0 status update
+  } catch (e) {
+    statBar('<div class="stat">⚠️ Connection error</div>');
+    document.getElementById('models').innerHTML = '<div class="loading">⚠️ Connection error</div>';
+  }
+}
+
+async function doStart(name) {
+  try {
+    // Collect edited params from collapsible panel
+    const panel = document.getElementById('panel-' + name);
+    const editedParams = {};
+    if (panel) {
+      const inputs = panel.querySelectorAll('.param-input:not([disabled])');
+      inputs.forEach(input => {
+        const paramName = input.getAttribute('data-param-name');
+        if (paramName) {
+          editedParams[paramName] = input.value;
+        }
+      });
+    }
+
+    const body = editedParams && Object.keys(editedParams).length > 0
+      ? { params: editedParams }
+      : null;
+
+    const r = await fetch('/api/start/' + name, {
+      method: 'POST',
+      headers: body ? {'Content-Type': 'application/json'} : {},
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await r.json();
+    if (data.success) {
+      toast(`✅ Started ${name} (PID ${data.pid})`);
+    } else if (data.memory_warning) {
+      // Memory warning — show danger confirmation modal
+      showMemoryWarningModal(data, name, editedParams);
+    } else {
+      toast(`❌ ${data.error}`, 'error');
+    }
+    fetchAll();
+  } catch(e) { toast('❌ Request failed', 'error'); }
+}
+
+async function showMemoryWarningModal(data, name, editedParams) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:#1c1c1e;border:1px solid #f85149;border-radius:12px;padding:24px;max-width:440px;width:90%;box-shadow:0 8px 32px rgba(248,81,73,0.2);';
+
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <span style="font-size:28px;">⚠️</span>
+      <span style="font-size:18px;font-weight:700;color:#f85149;">Insufficient Memory</span>
+    </div>
+    <p style="color:#c9d1d9;margin-bottom:16px;line-height:1.5;">
+      Only <strong style="color:#f0883e;">${data.mem_available_gb} GB</strong> available, but <strong style="color:#f85149;">${data.mem_required_gb} GB</strong> is needed for <strong>${data.model_label}</strong>.
+    </p>
+    <p style="color:#8b949e;font-size:13px;margin-bottom:20px;line-height:1.5;">
+      The model may fail to start, crash, or OOM-kill the process. Proceed anyway?
+    </p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button id="mb-cancel" style="background:#30363d;color:#c9d1d9;border:1px solid #484f58;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px;">Cancel</button>
+      <button id="mb-confirm" style="background:#da3633;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px;font-weight:600;">⚠️ Start Anyway</button>
+    </div>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  // Cancel
+  document.getElementById('mb-cancel').addEventListener('click', () => overlay.remove());
+
+  // Confirm — retry with force=true
+  document.getElementById('mb-confirm').addEventListener('click', async () => {
+    overlay.remove();
+    try {
+      const body = editedParams && Object.keys(editedParams).length > 0
+        ? { params: editedParams, force: true }
+        : { force: true };
+
+      const r = await fetch('/api/start/' + name, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      const data2 = await r.json();
+      if (data2.success) {
+        toast(`✅ Started ${name} (PID ${data2.pid})`);
+      } else {
+        toast(`❌ ${data2.error}`, 'error');
+      }
+      fetchAll();
+    } catch(e) {
+      toast('❌ Request failed', 'error');
+    }
+  });
+}
+
+async function doStop(name) {
+  try {
+    const r = await fetch('/api/stop/' + name, { method: 'POST' });
+    const data = await r.json();
+    if (data.success) {
+      if (data.dep_warnings && data.dep_warnings.length > 0) {
+        showStopDepWarningModal(data, name);
+      } else {
+        toast(`⏹ Stopped ${name}`);
+      }
+    } else {
+      toast(`⚠️ ${data.error}`, 'error');
+    }
+    fetchAll();
+  } catch(e) { toast('❌ Request failed', 'error'); }
+}
+
+async function showStopDepWarningModal(data, name) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:#1c1c1e;border:1px solid #f0883e;border-radius:12px;padding:24px;max-width:440px;width:90%;box-shadow:0 8px 32px rgba(240,136,62,0.15);';
+
+  let warningsHtml = '';
+  for (const w of data.dep_warnings) {
+    warningsHtml += `
+      <div style="margin-bottom:12px;padding:10px 12px;background:#2d2d30;border-radius:6px;border-left:3px solid #f0883e;">
+        <div style="font-weight:600;color:#f0883e;margin-bottom:4px;">${w.service}</div>
+        <div style="font-size:13px;color:#8b949e;">${w.impact}</div>
+      </div>
+    `;
+  }
+
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <span style="font-size:28px;">🔌</span>
+      <span style="font-size:18px;font-weight:700;color:#f0883e;">Stopping Active Model</span>
+    </div>
+    <p style="color:#c9d1d9;margin-bottom:16px;line-height:1.5;">
+      This model is currently running and may be in use by other services.
+    </p>
+    ${warningsHtml}
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button id="sb-cancel" style="background:#30363d;color:#c9d1d9;border:1px solid #484f58;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px;">Keep Running</button>
+      <button id="sb-confirm" style="background:#da3633;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px;font-weight:600;">⚠️ Stop Anyway</button>
+    </div>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  document.getElementById('sb-cancel').addEventListener('click', () => overlay.remove());
+
+  document.getElementById('sb-confirm').addEventListener('click', () => {
+    overlay.remove();
+    toast(`⏹ Stopped ${name}`);
+    fetchAll();
+  });
+}
+
+
+// ── Settings panel toggle ──
+function togglePanel(name) {
+  const panel = document.getElementById('panel-' + name);
+  const btn = document.querySelector(`#card-${name} .gear-btn`);
+  if (!panel || !btn) return;
+  const isVisible = panel.style.display !== 'none';
+  panel.style.display = isVisible ? 'none' : 'block';
+  btn.classList.toggle('active', !isVisible);
+}
+
+// ── Param persistence ──
+async function saveParam(name, paramName, value) {
+  try {
+    await fetch('/api/params/' + name, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({[paramName]: value})
+    });
+  } catch(e) {
+    toast('Failed to save param', 'error');
+  }
+}
+
+async function loadParams(name) {
+  try {
+    const r = await fetch('/api/params/' + name);
+    const params = await r.json();
+    if (!params || typeof params !== 'object') return;
+    const panel = document.getElementById('panel-' + name);
+    if (!panel) return;
+    for (const [paramName, value] of Object.entries(params)) {
+      const input = panel.querySelector(`input[data-param-name="${paramName}"]`);
+      if (input) input.value = value;
+    }
+  } catch(e) {
+    // Silent fallback — params are optional
+  }
+}
+
+// ── P0 service controls ──
+let p0LogsPopup = null;
+let p0LogsData = {};
+
+function p0ChipClass(s) {
+  return `p0-chip ${s.status} ${s.critical ? 'critical' : ''}`;
+}
+
+async function renderP0Services(p0data) {
+  const container = document.getElementById('p0-status-bar');
+  if (!container) return;
+
+  const services = p0data?.services || [];
+  const active = services.filter(s => s.status === 'green').length;
+  const total = services.length;
+
+  // Group by category
+  const groups = {};
+  for (const s of services) {
+    const g = s.group || 'other';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(s);
+  }
+
+  const groupLabels = { core: 'Core', finance: 'Finance', infra: 'Infra', bot: 'Bot', app: 'App' };
+
+  let html = '';
+
+  // Summary line
+  html += `<span class="p0-group-label" style="margin-right:8px">${active}/${total} up · ${p0data?.ok_pct || 0}%</span>`;
+
+  for (const [group, svcs] of Object.entries(groups)) {
+    const label = groupLabels[group] || group;
+    html += `<span class="p0-group-label">${label}</span>`;
+    for (const s of svcs) {
+      const icon = s.status === 'green' ? '🟢' : s.status === 'yellow' ? '🟡' : '🔴';
+      const latency = s.latency_ms ? ` <span class="p0-latency">${s.latency_ms}ms</span>` : '';
+      const port = s.port ? ` <span class="p0-port">:${s.port}</span>` : '';
+      const label2 = s.status_text.replace('✅ ', '').replace('🟡 ', '').replace('🔴 ', '');
+
+      html += `
+        <span class="${p0ChipClass(s)}" id="p0-chip-${s.name}">
+          <span class="p0-icon">${icon}</span>
+          <span class="p0-name">${s.label}</span>
+          ${latency}
+          ${port}
+          <span class="p0-actions">
+            ${s.status !== 'green' && s.health_check !== 'process' ? `<button class="p0-btn restart-btn" onclick="p0Restart('${s.name}')" title="Restart">↻</button>` : ''}
+            ${s.health_check !== 'process' ? `<button class="p0-btn logs-btn" onclick="p0ToggleLogs('${s.name}', this)" title="Logs">📋</button>` : ''}
+          </span>
+        </span>
+      `;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+async function p0Restart(name) {
+  try {
+    const r = await fetch('/api/p0/restart/' + name, { method: 'POST' });
+    const data = await r.json();
+    if (data.success) toast(`↻ Restarted ${name}`);
+    else toast(`⚠ ${data.error}`, 'error');
+    fetchAll();
+  } catch(e) { toast('❌ Restart failed', 'error'); }
+}
+
+async function p0ToggleLogs(name, btn) {
+  // Close any existing popup
+  if (p0LogsPopup) {
+    p0LogsPopup.remove();
+    p0LogsPopup = null;
+    btn.classList.remove('active');
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/p0/logs/' + name + '?lines=20');
+    const data = await r.json();
+    btn.classList.add('active');
+
+    const chip = document.getElementById('p0-chip-' + name);
+    if (!chip) return;
+
+    const rect = chip.getBoundingClientRect();
+    p0LogsPopup = document.createElement('div');
+    p0LogsPopup.className = 'p0-logs-popup';
+    p0LogsPopup.style.left = Math.min(rect.left, window.innerWidth - 340) + 'px';
+    p0LogsPopup.style.top = (rect.bottom + 4) + 'px';
+    p0LogsPopup.innerHTML = `
+      <button class="close-btn" onclick="p0CloseLogs()">✕</button>
+      <pre>${escapeHtml((data.logs || []).join('\n'))}</pre>
+    `;
+    document.body.appendChild(p0LogsPopup);
+
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener('click', p0CloseLogsOutside, { once: true });
+    }, 10);
+  } catch(e) {
+    toast('Failed to load logs', 'error');
+  }
+}
+
+function p0CloseLogs() {
+  if (p0LogsPopup) {
+    p0LogsPopup.remove();
+    p0LogsPopup = null;
+  }
+  // Remove active class from all log buttons
+  document.querySelectorAll('.p0-btn.logs-btn').forEach(b => b.classList.remove('active'));
+}
+
+function p0CloseLogsOutside(e) {
+  if (p0LogsPopup && !p0LogsPopup.contains(e.target)) {
+    p0CloseLogs();
+  }
+}
+
+async function fetchP0Services() {
+  try {
+    const r = await fetch('/api/p0-services');
+    const data = await r.json();
+    renderP0Services(data);
+  } catch(e) {
+    // Silent fallback - don't show error if P0 API unavailable
+  }
+}
+
+
+// ── heartbeat: real API health check ──
+async function checkHeartbeat() {
+  try {
+    const r = await fetch('/api/heartbeat');
+    const d = await r.json();
+    const el = document.getElementById('heartbeat-status');
+    if (!el) return;
+    const running = d.models_running || 0;
+    const uptime = d.uptime || 0;
+    const hrs = Math.floor(uptime / 3600);
+    const mins = Math.floor((uptime % 3600) / 60);
+    el.textContent = running > 0 ? `${running} running · ${hrs}h${mins}m` : 'manager up';
+    el.style.color = '#7ee787';
+  } catch (e) {
+    const el = document.getElementById('heartbeat-status');
+    if (!el) return;
+    el.textContent = '⚠ err';
+    el.style.color = '#f0883e';
+  }
+}
+
+// Auto-refresh every 10 seconds
+autoRefresh = setInterval(fetchAll, REFRESH_MS);
+fetchAll();
+// Heartbeat check every 15s
+setInterval(checkHeartbeat, 15000);
+checkHeartbeat();
+
+</script>
+</body>
+</html>
